@@ -1,8 +1,3 @@
-## PolyGCL: GRAPH CONTRASTIVE LEARNING via Learnable Spectral Polynomial Filters
-
-This repository contains a PyTorch implementation of ICLR 2024 paper "[*PolyGCL: GRAPH CONTRASTIVE LEARNING via Learnable Spectral Polynomial Filters*](https://openreview.net/pdf?id=y21ZO6M86t)".
-
-
 ## Environment Settings    
 - pytorch 1.11.0
 - numpy 1.20.3
@@ -13,56 +8,9 @@ This repository contains a PyTorch implementation of ICLR 2024 paper "[*PolyGCL:
 - scikit-learn 0.24.2
 
 ### Datasets
+we will provide data once upon the accepetenace. 
 We provide the small datasets in the folder 'data'. You can access the heterophilic datasets and the large heterophilic graph arXiv-year via [heterophilous-graphs](https://github.com/yandex-research/heterophilous-graphs) and [LINKX](https://github.com/CUAI/Non-Homophily-Large-Scale) respectively.
 
 
-## Reproduce the results
-
-### On real-world datasets
+## Run the experiments
 You can run the following commands directly.
-
-```sh
-sh exp_PolyGCL.sh
-```
-Heterophilic datasets:
-```sh
-cd HeterophilousGraph
-sh exp_PolyGCL.sh
-```
-Large heterophilic graph arXiv-year:
-```sh
-cd non-homophilous
-sh exp_PolyGCL.sh
-```
-
-### On synthetic datasets
-
-Generate the cSBM data firstly.
-```sh
-cd cSBM
-sh create_cSBM.sh
-```
-Then run the following command directly.
-```sh
-sh run_cSBM.sh
-```
-
-## Acknowledgements 
-This project includes code or ideas inspired by the following repositories:
- - [ChebNetII](https://github.com/ivam-he/ChebNetII)
- -  [MVGRL](https://github.com/kavehhassani/mvgrl)
- - [DGI](https://github.com/PetarV-/DGI)
- 
-## Citation
-
-    @inproceedings{
-	    chen2024polygcl,
-	    title={Poly{GCL}: {GRAPH} {CONTRASTIVE} {LEARNING} via Learnable Spectral Polynomial Filters},
-	    author={Jingyu Chen and Runlin Lei and Zhewei Wei},
-	    booktitle={The Twelfth International Conference on Learning Representations},
-	    year={2024},
-	    url={https://openreview.net/forum?id=y21ZO6M86t}
-    }
-
-## Contact
-If you have any questions, please feel free to contact me with [jy.chen@ruc.edu.cn](mailto:jy.chen@ruc.edu.cn).
