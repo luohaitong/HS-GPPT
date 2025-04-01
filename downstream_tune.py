@@ -6,15 +6,12 @@ import random
 import numpy as np
 import torch.nn as nn
 import os
-
-from model import LogReg
-from prompt import PolyPrompt
-
-from PromptGraph import HeavyPrompt
-from BWGNN_multiple import BWGNN, Triple_GNN
-from tqdm import *
 from sklearn.metrics import f1_score
-from utils import load_data_multiple
+from tqdm import *
+
+from model import LogReg, FilterWeight, BWGNN
+from downstream_prompt import HeavyPrompt
+from utils import load_data
 
 warnings.filterwarnings("ignore")
 
@@ -41,6 +38,8 @@ parser.add_argument('--is_bns', type=bool, default=False)
 parser.add_argument('--act_fn', default='relu',help='activation function')
 parser.add_argument("--threshold", type=float, default=0.5, help="Layer of encoder.")
 parser.add_argument("--prompt_num", type=int, default=10, help="Layer of encoder.")
+parser.add_argument("--shot_num", type=int, default=5, help="Number of training samples per class.")
+parser.add_argument('--num_filters', type=int, default=3, help='Number of hybrid spectral fitlers.')
 
 args = parser.parse_args()
 
@@ -59,23 +58,18 @@ os.environ['PYTHONHASHSEED'] = str(args.seed)
 
 if __name__ == "__main__":
     print(args)
-    # Step 1: Load data =================================================================== #
-    num_fitlers = 3
-    shot_num = 5
 
-    feat, edge_index, label, lbl, n_feat, n_classes = load_data_multiple(args.dataname, args.device, num_channels=num_fitlers)
+    feat, edge_index, label, lbl, n_feat, n_classes = load_data(args.dataname, args.device, num_channels=args.num_filters)
 
-    # Step 2: Load model =================================================================== #
-    model = BWGNN(n_feat, args.hid_dim, dprate=args.dprate, dropout=args.dropout, is_bns=args.is_bns, act_fn=args.act_fn, d = num_fitlers-1).to(args.device)
-    polyprompt = PolyPrompt(args.hid_dim, num_channels=num_fitlers).to(args.device)
+    model = BWGNN(n_feat, args.hid_dim, d = args.num_filters-1).to(args.device)
+    filterweight = FilterWeight(args.hid_dim, num_channels=args.num_filters).to(args.device)
 
     model.load_state_dict(torch.load('pkl/best_model_'+ args.pretrain_dataname + '.pkl'))
-    polyprompt.load_state_dict(torch.load('pkl/polyweight_'+ args.pretrain_dataname + '.pkl'))
+    filterweight.load_state_dict(torch.load('pkl/best_filterweight_'+ args.pretrain_dataname + '.pkl'))
 
     model.eval()
-    polyprompt.eval()
+    filterweight.eval()
 
-    # Step 5:  Evaluation ========================================================== #
     results = []
     results_f1 = []
 
@@ -85,9 +79,9 @@ if __name__ == "__main__":
 
     for i in range(5):
 
-        train_mask = torch.load("/home/dell/luohaitong/he_prompt/ProG_new/ProG/Experiment/sample_data_new/Node/{}/{}_shot/{}/train_idx.pt".format(args.dataname, shot_num, i)).type(torch.long).to(args.device)
-        test_mask = torch.load("/home/dell/luohaitong/he_prompt/ProG_new/ProG/Experiment/sample_data_new/Node/{}/{}_shot/{}/test_idx.pt".format(args.dataname, shot_num, i)).type(torch.long).to(args.device)
-        val_mask = torch.load("/home/dell/luohaitong/he_prompt/ProG_new/ProG/Experiment/sample_data_new/Node/{}/{}_shot/{}/val_idx.pt".format(args.dataname, shot_num, i)).type(torch.long).to(args.device)
+        train_mask = torch.load("./data/data_splits/{}/{}_shot/{}/train_idx.pt".format(args.dataname, args.shot_num, i)).type(torch.long).to(args.device)
+        test_mask = torch.load("./data/data_splits/{}/{}_shot/{}/test_idx.pt".format(args.dataname, args.shot_num, i)).type(torch.long).to(args.device)
+        val_mask = torch.load("./data/data_splits/{}/{}_shot/{}/val_idx.pt".format(args.dataname, args.shot_num, i)).type(torch.long).to(args.device)
 
         train_labels = label[train_mask]
         val_labels = label[val_mask]
@@ -97,20 +91,13 @@ if __name__ == "__main__":
         eval_acc = 0.0
         eval_f1 = 0.0
 
-        logreg = LogReg(hid_dim=args.hid_dim, n_classes=n_classes)
+        logreg = LogReg(hid_dim=args.hid_dim, n_classes=n_classes).to(args.device)
         opt = torch.optim.Adam(logreg.parameters(), lr=args.lr, weight_decay=args.wd)
-        logreg = logreg.to(args.device)
 
         # Construct prompt graphs =================================================================== #
-        if args.dataname in ['cora','pubmed','citeseer']:
-            cross_prune = 0.55  #0.6
-        elif args.dataname in ['wisconsin']:
-            cross_prune = 0.4  # 0.4
-        elif args.dataname in ['amazon_ratings']:
-            cross_prune = 0.4
-        else:
-            cross_prune = 0.5
+
         cross_prune = args.threshold
+
         prompt_1 = HeavyPrompt(n_feat, args.prompt_num, mean, std, cross_prune=cross_prune, inner_prune=0.2).to(args.device)
         prompt_2 = HeavyPrompt(n_feat, args.prompt_num, mean, std, cross_prune=cross_prune, inner_prune=0.2).to(args.device)
         prompt_3 = HeavyPrompt(n_feat, args.prompt_num, mean, std, cross_prune=cross_prune, inner_prune=0.2).to(args.device)
@@ -139,13 +126,13 @@ if __name__ == "__main__":
 
             if args.mode == '0' or args.mode == '3':
                 embeds = model.get_embedding(edge_index_1, edge_index_2, edge_index_3, feat_prompted1, feat_prompted2, feat_prompted3)
-                embeds = polyprompt(embeds)[args.prompt_num:]
+                embeds = filterweight(embeds)[args.prompt_num:]
             elif args.mode == '1':
                 embeds = model.get_embedding(edge_index_1, edge_index_1, edge_index_1, feat_prompted1, feat_prompted1, feat_prompted1)
-                embeds = polyprompt(embeds)[args.prompt_num:]
+                embeds = filterweight(embeds)[args.prompt_num:]
             elif args.mode == '2':
                 embeds = model.get_embedding(edge_index, edge_index, edge_index, feat, feat, feat)
-                embeds = polyprompt(embeds)
+                embeds = filterweight(embeds)
 
             train_embs = embeds[train_mask]
             val_embs = embeds[val_mask]

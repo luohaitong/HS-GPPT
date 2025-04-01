@@ -7,7 +7,6 @@ from torch_sparse import coalesce
 from torch_geometric.data import InMemoryDataset, download_url, Data
 from torch_geometric.utils.undirected import to_undirected
 import os
-# from .cSBM.cSBM_dataset import dataset_ContextualSBM
 
 class Chame_Squir_Actor(InMemoryDataset):
     def __init__(self, root='data/', name=None, p2raw=None, transform=None, pre_transform=None):
@@ -119,21 +118,15 @@ class WebKB(InMemoryDataset):
         return '{}()'.format(self.name)
 
 def DataLoader(name):
-    # if 'cSBM' in name:
-    #     path = './cSBM/data/'
-    #     dataset = dataset_ContextualSBM(root=path, name=name)
-    # else:
-    #     name = name.lower()
+
     name = name.lower()
 
     if name in ['cora', 'citeseer', 'pubmed']:
-        dataset = Planetoid(osp.join('/home/dell/luohaitong/he_prompt/PolyGCL/data/', name), name, transform=T.NormalizeFeatures())
-        # dataset = Planetoid(osp.join('/home/dell/luohaitong/he_prompt/PolyGCL/data/', name), name, transform=T.NormalizeFeatures())
+        dataset = Planetoid(osp.join('./data/', name), name, transform=T.NormalizeFeatures())
     elif name in ['chameleon', 'actor', 'squirrel']:
         dataset = Chame_Squir_Actor(root='./data/', name=name, transform=T.NormalizeFeatures())
-        # dataset = Chame_Squir_Actor(root='/home/dell/luohaitong/he_prompt/PolyGCL/data/', name=name, transform=T.NormalizeFeatures())
     elif name in ['texas', 'cornell', 'wisconsin']:
-        dataset = WebKB(root='/home/dell/luohaitong/he_prompt/PolyGCL/data/',name=name, transform=T.NormalizeFeatures())
+        dataset = WebKB(root='./data/',name=name, transform=T.NormalizeFeatures())
     else:
         raise ValueError(f'dataset {name} not supported in dataloader')
     return dataset
